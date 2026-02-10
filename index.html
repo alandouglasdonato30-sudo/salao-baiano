@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Salão do Baiano - Agendamento</title>
+
 <style>
 body{
     font-family: Arial, sans-serif;
     background: #111;
     color: white;
     text-align: center;
+    padding: 20px;
 }
 .slot{
     background:#222;
     padding:15px;
-    margin:10px;
+    margin:10px auto;
     border-radius:8px;
-    display:inline-block;
     width:200px;
 }
 button{
@@ -30,13 +31,32 @@ button{
 button:disabled{
     background:gray;
 }
-#paymentBox, #senhaBox{
-    display:none;
-    margin-top:20px;
-}
-img{
-    width:200px;
-}
 </style>
 </head>
+
 <body>
+
+<h1>💈 Salão do Baiano</h1>
+<p>Escolha um horário disponível</p>
+
+<div class="slot">
+    <p>10:00</p>
+    <button>Agendar</button>
+</div>
+
+<div class="slot">
+    <p>11:00</p>
+    <button>Agendar</button>
+</div>
+
+<div class="slot">
+    <p>14:00</p>
+    <button>Agendar</button>
+</div>
+
+<p style="margin-top:40px; font-size:14px; color:#aaa;">
+    © 2026 Salão do Baiano
+</p>
+
+</body>
+</html>
