@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Salão do Baiano - Agendamento</title>
+<title>Salão do Baiano</title>
 
 <style>
 body{
     background:#111;
     color:#fff;
-    font-family:Arial, sans-serif;
+    font-family:Arial;
     text-align:center;
     padding:20px;
 }
-.day, .hour{
+.day,.hour,.servico{
     display:inline-block;
     padding:10px 15px;
     margin:5px;
@@ -21,39 +21,27 @@ body{
     border-radius:6px;
     cursor:pointer;
 }
-.selected{
-    background:#00c853;
-}
-#agendar{
-    margin-top:20px;
+.selected{background:#00c853}
+button{
     padding:12px 25px;
-    font-size:16px;
-    background:gray;
+    margin-top:15px;
     border:none;
     border-radius:8px;
-    color:white;
-    cursor:not-allowed;
+    background:#444;
+    color:#fff;
 }
-#agendar.active{
+button.active{
     background:#00c853;
     cursor:pointer;
 }
-#confirmacao, #pagar{
+.box{
     display:none;
-    margin-top:30px;
     background:#222;
     padding:20px;
     border-radius:10px;
+    margin-top:20px;
 }
-#pagar{
-    margin-top:15px;
-    padding:10px 20px;
-    background:#ff5722;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-    color:white;
-}
+img{width:200px}
 </style>
 </head>
 
@@ -61,151 +49,129 @@ body{
 
 <h1>💈 Salão do Baiano</h1>
 
-<h3>Escolha o dia</h3>
+<h3>Dia</h3>
 <div id="dias"></div>
 
-<h3>Escolha o horário</h3>
+<h3>Horário</h3>
 <div id="horarios"></div>
 
 <button id="agendar">AGENDAR</button>
 
-<div id="confirmacao">
-    <h2>✅ Reserva Confirmada</h2>
-    <p><strong>Código:</strong> <span id="codigo"></span></p>
-    <p>Tempo até o horário:</p>
-    <h3 id="contador"></h3>
+<div id="cardapio" class="box">
+<h3>Serviço</h3>
+<div class="servico" data-valor="30">Cabelo – R$30</div>
+<div class="servico" data-valor="15">Barba – R$15</div>
+<div class="servico" data-valor="40">Barba + Cabelo – R$40</div>
+<div class="servico" data-valor="5">Pé de cabelo – R$5</div>
+<div class="servico" data-valor="15">Pigmentação – R$15</div>
+<div class="servico" data-valor="25">Corte social – R$25</div>
 </div>
 
-<button id="pagar">Pagar</button>
+<div id="pagamento" class="box">
+<h3>Pague via PicPay</h3>
+<p><strong>Total: R$ <span id="total"></span></strong></p>
+<img id="qr">
+<br>
+<button id="confirmar">Confirmar pagamento</button>
+</div>
+
+<div id="confirmacao" class="box">
+<h2>✅ Reserva confirmada</h2>
+<p>Código: <strong id="codigo"></strong></p>
+<p>Tempo até o horário:</p>
+<h3 id="contador"></h3>
+</div>
 
 <script>
-// Dias da semana
-const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-const diasDiv = document.getElementById("dias");
-const horariosDiv = document.getElementById("horarios");
-const btnAgendar = document.getElementById("agendar");
-const btnPagar = document.getElementById("pagar");
+const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const dias=document.getElementById("dias");
+const horarios=document.getElementById("horarios");
+const btnAgendar=document.getElementById("agendar");
 
-let diaSelecionado = null;
-let horaSelecionada = null;
+let diaSel,horaSel,valorSel;
+let reservas={};
 
-// Armazenar reservas
-let reservas = {}; // formato: reservas[dia] = [horas reservadas]
-
-diasSemana.forEach(dia=>{
-    const d = document.createElement("div");
-    d.className="day";
-    d.innerText=dia;
-    d.onclick=()=>{
+diasSemana.forEach(d=>{
+    let el=document.createElement("div");
+    el.className="day";
+    el.innerText=d;
+    el.onclick=()=>{
         document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
-        d.classList.add("selected");
-        diaSelecionado = dia;
-        atualizarHorarios();
-        liberarBotao();
+        el.classList.add("selected");
+        diaSel=d;
+        carregarHorarios();
     }
-    diasDiv.appendChild(d);
+    dias.appendChild(el);
 });
 
-function atualizarHorarios(){
-    horariosDiv.innerHTML = "";
-    let horaInicio = 8;
-    let horaFim = 19;
+function carregarHorarios(){
+    horarios.innerHTML="";
+    let fim = diaSel==="Dom"?11:19;
+    for(let h=8;h<=fim;h++){
+        let hr=`${h.toString().padStart(2,"0")}:00`;
+        let el=document.createElement("div");
+        el.className="hour";
+        el.innerText=hr;
 
-    if(diaSelecionado === "Dom") horaFim = 11; // regra domingo
-
-    for(let h = horaInicio; h <= horaFim; h++){
-        const hora = `${h.toString().padStart(2,"0")}:00`;
-        const div = document.createElement("div");
-        div.className="hour";
-        div.innerText=hora;
-
-        // se hora já reservada
-        if(reservas[diaSelecionado] && reservas[diaSelecionado].includes(hora)){
-            div.style.background="#555";
-            div.style.cursor="not-allowed";
-        } else {
-            div.onclick=()=>{
+        if(reservas[diaSel]?.includes(hr)){
+            el.style.opacity="0.4";
+        }else{
+            el.onclick=()=>{
                 document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
-                div.classList.add("selected");
-                horaSelecionada = hora;
-                liberarBotao();
+                el.classList.add("selected");
+                horaSel=hr;
+                btnAgendar.classList.add("active");
             }
         }
-
-        horariosDiv.appendChild(div);
-    }
-}
-
-function liberarBotao(){
-    if(diaSelecionado && horaSelecionada){
-        btnAgendar.classList.add("active");
-        btnAgendar.disabled=false;
+        horarios.appendChild(el);
     }
 }
 
 btnAgendar.onclick=()=>{
-    if(!btnAgendar.classList.contains("active")) return;
+    if(!horaSel) return;
+    document.getElementById("cardapio").style.display="block";
+};
 
-    // simular pagamento
-    btnAgendar.style.display = "none";
-    btnPagar.style.display = "inline-block";
-}
+document.querySelectorAll(".servico").forEach(s=>{
+    s.onclick=()=>{
+        valorSel=s.dataset.valor;
+        document.getElementById("total").innerText=valorSel;
 
-// Botão simula pagamento
-btnPagar.onclick = () => {
-    // Registrar reserva
-    if(!reservas[diaSelecionado]) reservas[diaSelecionado] = [];
-    reservas[diaSelecionado].push(horaSelecionada);
+        // QR fake (simulação)
+        document.getElementById("qr").src=
+        `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PicPay-R$${valorSel}`;
 
-    // Gerar código de reserva
-    const codigo = Math.floor(100000 + Math.random()*900000);
-    document.getElementById("codigo").innerText = codigo;
-
-    // Mostrar confirmação
-    document.getElementById("confirmacao").style.display = "block";
-    btnPagar.style.display = "none";
-
-    iniciarContagem(diaSelecionado, horaSelecionada);
-}
-
-// Contagem regressiva até horário agendado
-function iniciarContagem(dia, hora){
-    const agora = new Date();
-    let diaIndex = diasSemana.indexOf(dia);
-    const hojeIndex = agora.getDay(); // 0 = Dom
-    let diasParaAgendar = (diaIndex - hojeIndex + 7) % 7;
-    if(diasParaAgendar === 0 && hora <= `${agora.getHours().toString().padStart(2,"0")}:00`){
-        diasParaAgendar = 7; // se o horário já passou hoje
+        document.getElementById("cardapio").style.display="none";
+        document.getElementById("pagamento").style.display="block";
     }
+});
 
-    const [h, m] = hora.split(":");
-    const dataAgendada = new Date(
-        agora.getFullYear(),
-        agora.getMonth(),
-        agora.getDate() + diasParaAgendar,
-        parseInt(h),
-        parseInt(m),
-        0
-    );
+document.getElementById("confirmar").onclick=()=>{
+    reservas[diaSel]=reservas[diaSel]||[];
+    reservas[diaSel].push(horaSel);
 
-    let segundos = Math.floor((dataAgendada - agora)/1000);
+    document.getElementById("pagamento").style.display="none";
+    document.getElementById("confirmacao").style.display="block";
+    document.getElementById("codigo").innerText=Math.floor(100000+Math.random()*900000);
 
-    const intervalo = setInterval(()=>{
-        if(segundos <= 0){
-            clearInterval(intervalo);
-            document.getElementById("contador").innerText = "00:00";
-            return;
-        }
-        segundos--;
-        let min = Math.floor(segundos/60);
-        let sec = segundos % 60;
-        document.getElementById("contador").innerText =
-            `${min.toString().padStart(2,"0")}m ${sec.toString().padStart(2,"0")}s`;
+    iniciarContagem();
+};
+
+function iniciarContagem(){
+    let alvo=new Date();
+    let idx=diasSemana.indexOf(diaSel);
+    let dif=(idx-alvo.getDay()+7)%7;
+    let [h]=horaSel.split(":");
+    alvo.setDate(alvo.getDate()+dif);
+    alvo.setHours(h,0,0);
+
+    setInterval(()=>{
+        let s=Math.floor((alvo-new Date())/1000);
+        let m=Math.floor(s/60);
+        document.getElementById("contador").innerText=
+        `${m}m ${s%60}s`;
     },1000);
 }
 </script>
-
 </body>
 </html>
-
-
