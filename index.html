@@ -38,12 +38,21 @@ body{
     background:#00c853;
     cursor:pointer;
 }
-#confirmacao{
+#confirmacao, #pagar{
     display:none;
     margin-top:30px;
     background:#222;
     padding:20px;
     border-radius:10px;
+}
+#pagar{
+    margin-top:15px;
+    padding:10px 20px;
+    background:#ff5722;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    color:white;
 }
 </style>
 </head>
@@ -67,14 +76,21 @@ body{
     <h3 id="contador"></h3>
 </div>
 
+<button id="pagar">Pagar</button>
+
 <script>
+// Dias da semana
 const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 const diasDiv = document.getElementById("dias");
 const horariosDiv = document.getElementById("horarios");
-const btn = document.getElementById("agendar");
+const btnAgendar = document.getElementById("agendar");
+const btnPagar = document.getElementById("pagar");
 
 let diaSelecionado = null;
 let horaSelecionada = null;
+
+// Armazenar reservas
+let reservas = {}; // formato: reservas[dia] = [horas reservadas]
 
 diasSemana.forEach(dia=>{
     const d = document.createElement("div");
@@ -84,54 +100,112 @@ diasSemana.forEach(dia=>{
         document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
         d.classList.add("selected");
         diaSelecionado = dia;
+        atualizarHorarios();
         liberarBotao();
     }
     diasDiv.appendChild(d);
 });
 
-for(let h=8; h<=19; h++){
-    const hora = `${h.toString().padStart(2,"0")}:00`;
-    const div = document.createElement("div");
-    div.className="hour";
-    div.innerText=hora;
-    div.onclick=()=>{
-        document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
-        div.classList.add("selected");
-        horaSelecionada = hora;
-        liberarBotao();
+function atualizarHorarios(){
+    horariosDiv.innerHTML = "";
+    let horaInicio = 8;
+    let horaFim = 19;
+
+    if(diaSelecionado === "Dom") horaFim = 11; // regra domingo
+
+    for(let h = horaInicio; h <= horaFim; h++){
+        const hora = `${h.toString().padStart(2,"0")}:00`;
+        const div = document.createElement("div");
+        div.className="hour";
+        div.innerText=hora;
+
+        // se hora já reservada
+        if(reservas[diaSelecionado] && reservas[diaSelecionado].includes(hora)){
+            div.style.background="#555";
+            div.style.cursor="not-allowed";
+        } else {
+            div.onclick=()=>{
+                document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
+                div.classList.add("selected");
+                horaSelecionada = hora;
+                liberarBotao();
+            }
+        }
+
+        horariosDiv.appendChild(div);
     }
-    horariosDiv.appendChild(div);
 }
 
 function liberarBotao(){
     if(diaSelecionado && horaSelecionada){
-        btn.classList.add("active");
-        btn.disabled=false;
+        btnAgendar.classList.add("active");
+        btnAgendar.disabled=false;
     }
 }
 
-btn.onclick=()=>{
-    if(!btn.classList.contains("active")) return;
+btnAgendar.onclick=()=>{
+    if(!btnAgendar.classList.contains("active")) return;
 
-    document.getElementById("confirmacao").style.display="block";
+    // simular pagamento
+    btnAgendar.style.display = "none";
+    btnPagar.style.display = "inline-block";
+}
+
+// Botão simula pagamento
+btnPagar.onclick = () => {
+    // Registrar reserva
+    if(!reservas[diaSelecionado]) reservas[diaSelecionado] = [];
+    reservas[diaSelecionado].push(horaSelecionada);
+
+    // Gerar código de reserva
     const codigo = Math.floor(100000 + Math.random()*900000);
     document.getElementById("codigo").innerText = codigo;
 
-    iniciarContagem();
+    // Mostrar confirmação
+    document.getElementById("confirmacao").style.display = "block";
+    btnPagar.style.display = "none";
+
+    iniciarContagem(diaSelecionado, horaSelecionada);
 }
 
-function iniciarContagem(){
-    let segundos = 3600;
-    setInterval(()=>{
+// Contagem regressiva até horário agendado
+function iniciarContagem(dia, hora){
+    const agora = new Date();
+    let diaIndex = diasSemana.indexOf(dia);
+    const hojeIndex = agora.getDay(); // 0 = Dom
+    let diasParaAgendar = (diaIndex - hojeIndex + 7) % 7;
+    if(diasParaAgendar === 0 && hora <= `${agora.getHours().toString().padStart(2,"0")}:00`){
+        diasParaAgendar = 7; // se o horário já passou hoje
+    }
+
+    const [h, m] = hora.split(":");
+    const dataAgendada = new Date(
+        agora.getFullYear(),
+        agora.getMonth(),
+        agora.getDate() + diasParaAgendar,
+        parseInt(h),
+        parseInt(m),
+        0
+    );
+
+    let segundos = Math.floor((dataAgendada - agora)/1000);
+
+    const intervalo = setInterval(()=>{
+        if(segundos <= 0){
+            clearInterval(intervalo);
+            document.getElementById("contador").innerText = "00:00";
+            return;
+        }
         segundos--;
-        let m = Math.floor(segundos/60);
-        let s = segundos%60;
+        let min = Math.floor(segundos/60);
+        let sec = segundos % 60;
         document.getElementById("contador").innerText =
-            `${m}m ${s}s`;
+            `${min.toString().padStart(2,"0")}m ${sec.toString().padStart(2,"0")}s`;
     },1000);
 }
 </script>
 
 </body>
 </html>
+
 
