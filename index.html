@@ -7,29 +7,43 @@
 
 <style>
 body{
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: white;
-    text-align: center;
-    padding: 20px;
+    background:#111;
+    color:#fff;
+    font-family:Arial, sans-serif;
+    text-align:center;
+    padding:20px;
 }
-.slot{
+.day, .hour{
+    display:inline-block;
+    padding:10px 15px;
+    margin:5px;
     background:#222;
-    padding:15px;
-    margin:10px auto;
-    border-radius:8px;
-    width:200px;
-}
-button{
-    padding:8px 15px;
-    background:#00c853;
-    border:none;
-    border-radius:5px;
-    color:white;
+    border-radius:6px;
     cursor:pointer;
 }
-button:disabled{
+.selected{
+    background:#00c853;
+}
+#agendar{
+    margin-top:20px;
+    padding:12px 25px;
+    font-size:16px;
     background:gray;
+    border:none;
+    border-radius:8px;
+    color:white;
+    cursor:not-allowed;
+}
+#agendar.active{
+    background:#00c853;
+    cursor:pointer;
+}
+#confirmacao{
+    display:none;
+    margin-top:30px;
+    background:#222;
+    padding:20px;
+    border-radius:10px;
 }
 </style>
 </head>
@@ -37,26 +51,87 @@ button:disabled{
 <body>
 
 <h1>💈 Salão do Baiano</h1>
-<p>Escolha um horário disponível</p>
 
-<div class="slot">
-    <p>10:00</p>
-    <button>Agendar</button>
+<h3>Escolha o dia</h3>
+<div id="dias"></div>
+
+<h3>Escolha o horário</h3>
+<div id="horarios"></div>
+
+<button id="agendar">AGENDAR</button>
+
+<div id="confirmacao">
+    <h2>✅ Reserva Confirmada</h2>
+    <p><strong>Código:</strong> <span id="codigo"></span></p>
+    <p>Tempo até o horário:</p>
+    <h3 id="contador"></h3>
 </div>
 
-<div class="slot">
-    <p>11:00</p>
-    <button>Agendar</button>
-</div>
+<script>
+const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const diasDiv = document.getElementById("dias");
+const horariosDiv = document.getElementById("horarios");
+const btn = document.getElementById("agendar");
 
-<div class="slot">
-    <p>14:00</p>
-    <button>Agendar</button>
-</div>
+let diaSelecionado = null;
+let horaSelecionada = null;
 
-<p style="margin-top:40px; font-size:14px; color:#aaa;">
-    © 2026 Salão do Baiano
-</p>
+diasSemana.forEach(dia=>{
+    const d = document.createElement("div");
+    d.className="day";
+    d.innerText=dia;
+    d.onclick=()=>{
+        document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
+        d.classList.add("selected");
+        diaSelecionado = dia;
+        liberarBotao();
+    }
+    diasDiv.appendChild(d);
+});
+
+for(let h=8; h<=19; h++){
+    const hora = `${h.toString().padStart(2,"0")}:00`;
+    const div = document.createElement("div");
+    div.className="hour";
+    div.innerText=hora;
+    div.onclick=()=>{
+        document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
+        div.classList.add("selected");
+        horaSelecionada = hora;
+        liberarBotao();
+    }
+    horariosDiv.appendChild(div);
+}
+
+function liberarBotao(){
+    if(diaSelecionado && horaSelecionada){
+        btn.classList.add("active");
+        btn.disabled=false;
+    }
+}
+
+btn.onclick=()=>{
+    if(!btn.classList.contains("active")) return;
+
+    document.getElementById("confirmacao").style.display="block";
+    const codigo = Math.floor(100000 + Math.random()*900000);
+    document.getElementById("codigo").innerText = codigo;
+
+    iniciarContagem();
+}
+
+function iniciarContagem(){
+    let segundos = 3600;
+    setInterval(()=>{
+        segundos--;
+        let m = Math.floor(segundos/60);
+        let s = segundos%60;
+        document.getElementById("contador").innerText =
+            `${m}m ${s}s`;
+    },1000);
+}
+</script>
 
 </body>
 </html>
+
