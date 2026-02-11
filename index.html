@@ -1,177 +1,112 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Salão do Baiano</title>
+<script type="module">
 
-<style>
-body{
-    background:#111;
-    color:#fff;
-    font-family:Arial;
-    text-align:center;
-    padding:20px;
-}
-.day,.hour,.servico{
-    display:inline-block;
-    padding:10px 15px;
-    margin:5px;
-    background:#222;
-    border-radius:6px;
-    cursor:pointer;
-}
-.selected{background:#00c853}
-button{
-    padding:12px 25px;
-    margin-top:15px;
-    border:none;
-    border-radius:8px;
-    background:#444;
-    color:#fff;
-}
-button.active{
-    background:#00c853;
-    cursor:pointer;
-}
-.box{
-    display:none;
-    background:#222;
-    padding:20px;
-    border-radius:10px;
-    margin-top:20px;
-}
-img{width:200px}
-</style>
-</head>
+// 🔥 IMPORTS CORRETOS PARA HTML
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-<body>
+// 🔑 SUA CONFIG (a que você mandou)
+const firebaseConfig = {
+  apiKey: "AIzaSyBIhdaoUVn15NHkOMSVCqIe2KyduVqo1vc",
+  authDomain: "myproject-68706.firebaseapp.com",
+  projectId: "myproject-68706",
+  storageBucket: "myproject-68706.firebasestorage.app",
+  messagingSenderId: "283715328094",
+  appId: "1:283715328094:web:2227ab06853a1a2dd9fccf",
+  measurementId: "G-V69Z81H288"
+};
 
-<h1>💈 Salão do Baiano</h1>
+// 🚀 Inicializa Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-<h3>Dia</h3>
-<div id="dias"></div>
+let user;
+let agendamentoSalvo = null;
 
-<h3>Horário</h3>
-<div id="horarios"></div>
-
-<button id="agendar">AGENDAR</button>
-
-<div id="cardapio" class="box">
-<h3>Serviço</h3>
-<div class="servico" data-valor="30">Cabelo – R$30</div>
-<div class="servico" data-valor="15">Barba – R$15</div>
-<div class="servico" data-valor="40">Barba + Cabelo – R$40</div>
-<div class="servico" data-valor="5">Pé de cabelo – R$5</div>
-<div class="servico" data-valor="15">Pigmentação – R$15</div>
-<div class="servico" data-valor="25">Corte social – R$25</div>
-</div>
-
-<div id="pagamento" class="box">
-<h3>Pague via PicPay</h3>
-<p><strong>Total: R$ <span id="total"></span></strong></p>
-<img id="qr">
-<br>
-<button id="confirmar">Confirmar pagamento</button>
-</div>
-
-<div id="confirmacao" class="box">
-<h2>✅ Reserva confirmada</h2>
-<p>Código: <strong id="codigo"></strong></p>
-<p>Tempo até o horário:</p>
-<h3 id="contador"></h3>
-</div>
-
-<script>
-const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-const dias=document.getElementById("dias");
-const horarios=document.getElementById("horarios");
-const btnAgendar=document.getElementById("agendar");
-
-let diaSel,horaSel,valorSel;
-let reservas={};
-
-diasSemana.forEach(d=>{
-    let el=document.createElement("div");
-    el.className="day";
-    el.innerText=d;
-    el.onclick=()=>{
-        document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
-        el.classList.add("selected");
-        diaSel=d;
+// 🔐 Login automático
+onAuthStateChanged(auth, async (u)=>{
+    if(u){
+        user = u;
+        verificarAgendamento();
         carregarHorarios();
+    }else{
+        await signInWithPopup(auth, provider);
     }
-    dias.appendChild(el);
 });
 
-function carregarHorarios(){
-    horarios.innerHTML="";
-    let fim = diaSel==="Dom"?11:19;
-    for(let h=8;h<=fim;h++){
-        let hr=`${h.toString().padStart(2,"0")}:00`;
-        let el=document.createElement("div");
-        el.className="hour";
-        el.innerText=hr;
+// 🔎 Verifica se já tem agendamento salvo
+async function verificarAgendamento(){
+    const ref = doc(db, "agendamentos", user.uid);
+    const snap = await getDoc(ref);
 
-        if(reservas[diaSel]?.includes(hr)){
-            el.style.opacity="0.4";
-        }else{
-            el.onclick=()=>{
-                document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
-                el.classList.add("selected");
-                horaSel=hr;
-                btnAgendar.classList.add("active");
+    if(snap.exists()){
+        agendamentoSalvo = snap.data();
+        alert("Você já tem um agendamento salvo!");
+    }
+}
+
+// 📅 Carrega horários
+async function carregarHorarios(){
+
+    const horariosDiv = document.getElementById("horarios");
+    horariosDiv.innerHTML="";
+
+    const querySnap = await getDocs(collection(db,"agendamentos"));
+    let ocupados = [];
+
+    querySnap.forEach(doc=>{
+        ocupados.push(doc.data().hora + "-" + doc.data().dia);
+    });
+
+    const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    let hoje = diasSemana[new Date().getDay()];
+
+    for(let h=8;h<=19;h++){
+        for(let m of ["00","30"]){
+
+            if(h===19 && m==="30") continue;
+
+            let hr=`${h.toString().padStart(2,"0")}:${m}`;
+            let chave = hr+"-"+hoje;
+
+            let el=document.createElement("div");
+            el.className="hour";
+            el.innerText=hr;
+
+            if(ocupados.includes(chave)){
+                el.style.opacity="0.3";
+            }else{
+                el.onclick=()=>agendar(hoje,hr);
             }
+
+            horariosDiv.appendChild(el);
         }
-        horarios.appendChild(el);
     }
 }
 
-btnAgendar.onclick=()=>{
-    if(!horaSel) return;
-    document.getElementById("cardapio").style.display="block";
-};
+// 📝 Salvar agendamento
+async function agendar(dia,hora){
 
-document.querySelectorAll(".servico").forEach(s=>{
-    s.onclick=()=>{
-        valorSel=s.dataset.valor;
-        document.getElementById("total").innerText=valorSel;
-
-        // QR fake (simulação)
-        document.getElementById("qr").src=
-        `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PicPay-R$${valorSel}`;
-
-        document.getElementById("cardapio").style.display="none";
-        document.getElementById("pagamento").style.display="block";
+    if(agendamentoSalvo){
+        alert("Você já possui agendamento!");
+        return;
     }
-});
 
-document.getElementById("confirmar").onclick=()=>{
-    reservas[diaSel]=reservas[diaSel]||[];
-    reservas[diaSel].push(horaSel);
+    const ref = doc(db, "agendamentos", user.uid);
 
-    document.getElementById("pagamento").style.display="none";
-    document.getElementById("confirmacao").style.display="block";
-    document.getElementById("codigo").innerText=Math.floor(100000+Math.random()*900000);
+    await setDoc(ref,{
+        nome:user.displayName,
+        email:user.email,
+        dia:dia,
+        hora:hora
+    });
 
-    iniciarContagem();
-};
-
-function iniciarContagem(){
-    let alvo=new Date();
-    let idx=diasSemana.indexOf(diaSel);
-    let dif=(idx-alvo.getDay()+7)%7;
-    let [h]=horaSel.split(":");
-    alvo.setDate(alvo.getDate()+dif);
-    alvo.setHours(h,0,0);
-
-    setInterval(()=>{
-        let s=Math.floor((alvo-new Date())/1000);
-        let m=Math.floor(s/60);
-        document.getElementById("contador").innerText=
-        `${m}m ${s%60}s`;
-    },1000);
+    alert("Agendamento confirmado!");
+    location.reload();
 }
+
 </script>
-</body>
-</html>
