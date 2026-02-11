@@ -4,59 +4,173 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Salão do Baiano - Agendamento</title>
-
 <style>
-body{
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: white;
-    text-align: center;
-    padding: 20px;
-}
-.slot{
-    background:#222;
-    padding:15px;
-    margin:10px auto;
-    border-radius:8px;
-    width:200px;
-}
-button{
-    padding:8px 15px;
-    background:#00c853;
-    border:none;
-    border-radius:5px;
-    color:white;
-    cursor:pointer;
-}
-button:disabled{
-    background:gray;
-}
+  body { font-family: Arial, sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
+  .slot, .service { background:#222; padding:15px; margin:10px auto; border-radius:8px; width:200px; }
+  button { padding:8px 15px; background:#00c853; border:none; border-radius:5px; color:white; cursor:pointer; margin-top:5px;}
+  button:disabled { background:gray; cursor: not-allowed; }
+  #payment-section { display:none; margin-top:20px; }
 </style>
 </head>
-
 <body>
 
 <h1>💈 Salão do Baiano</h1>
-<p>Escolha um horário disponível</p>
 
-<div class="slot">
-    <p>10:00</p>
-    <button>Agendar</button>
+<!-- Login Google -->
+<div id="login-section">
+  <p>Faça login para continuar</p>
+  <button id="google-login">Login com Google</button>
 </div>
 
-<div class="slot">
-    <p>11:00</p>
-    <button>Agendar</button>
+<!-- Agendamento -->
+<div id="booking-section" style="display:none;">
+  <p>Escolha um horário disponível</p>
+  <select id="day-select">
+    <option value="">--Escolha o dia--</option>
+    <option value="domingo">Domingo</option>
+    <option value="segunda">Segunda</option>
+    <option value="terca">Terça</option>
+    <option value="quarta">Quarta</option>
+    <option value="quinta">Quinta</option>
+    <option value="sexta">Sexta</option>
+    <option value="sabado">Sábado</option>
+  </select>
+
+  <div id="slots"></div>
+
+  <div id="services" style="display:none;">
+    <p>Escolha o serviço</p>
+    <div class="service">
+      <input type="radio" name="service" value="cabelo" data-price="30"> Cabelo - R$30
+    </div>
+    <div class="service">
+      <input type="radio" name="service" value="barba" data-price="15"> Barba - R$15
+    </div>
+    <div class="service">
+      <input type="radio" name="service" value="barba_cabelo" data-price="40"> Barba + Cabelo - R$40
+    </div>
+    <div class="service">
+      <input type="radio" name="service" value="pe_de_cabelo" data-price="5"> Pé de Cabelo - R$5
+    </div>
+    <div class="service">
+      <input type="radio" name="service" value="pigmentacao" data-price="15"> Pigmentação - R$15
+    </div>
+    <div class="service">
+      <input type="radio" name="service" value="cabelo_social" data-price="25"> Cabelo Social - R$25
+    </div>
+    <button id="agendar-btn">Agendar</button>
+  </div>
 </div>
 
-<div class="slot">
-    <p>14:00</p>
-    <button>Agendar</button>
+<!-- Pagamento -->
+<div id="payment-section">
+  <p id="payment-info"></p>
+  <button id="pay-btn">Pagar</button>
 </div>
 
-<p style="margin-top:40px; font-size:14px; color:#aaa;">
-    © 2026 Salão do Baiano
-</p>
+<!-- Contagem regressiva -->
+<div id="countdown" style="margin-top:20px;"></div>
 
+<p style="margin-top:40px; font-size:14px; color:#aaa;">© 2026 Salão do Baiano</p>
+
+<script>
+  let reservedSlots = {}; // Armazena horários reservados
+  let selectedDay = '';
+  let selectedTime = '';
+  let selectedService = null;
+  let countdownInterval = null;
+
+  // Função de login simulado
+  document.getElementById('google-login').onclick = function(){
+    // Aqui seria integração real com Google Login
+    localStorage.setItem('user', 'logado');
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('booking-section').style.display = 'block';
+    loadSlots();
+  };
+
+  function loadSlots() {
+    const slotsDiv = document.getElementById('slots');
+    slotsDiv.innerHTML = '';
+    document.getElementById('day-select').onchange = function(){
+      selectedDay = this.value;
+      slotsDiv.innerHTML = '';
+      if(selectedDay === 'segunda') { 
+        slotsDiv.innerHTML = '<p>Sem horários disponíveis</p>'; 
+        return; 
+      }
+      let startHour = 8; 
+      let startMin = 30;
+      let endHour = (selectedDay === 'domingo') ? 11 : 19;
+
+      while(startHour < endHour || (startHour === endHour && startMin === 0)) {
+        let timeStr = `${String(startHour).padStart(2,'0')}:${String(startMin).padStart(2,'0')}`;
+        let btn = document.createElement('button');
+        btn.textContent = "Agendar";
+        btn.onclick = () => selectSlot(timeStr);
+        if(reservedSlots[selectedDay] && reservedSlots[selectedDay].includes(timeStr)){
+          btn.disabled = true;
+        }
+        let div = document.createElement('div');
+        div.className = 'slot';
+        div.innerHTML = `<p>${timeStr}</p>`;
+        div.appendChild(btn);
+        slotsDiv.appendChild(div);
+
+        startMin += 30;
+        if(startMin === 60){ startMin = 0; startHour++; }
+      }
+    };
+  }
+
+  function selectSlot(time) {
+    selectedTime = time;
+    document.getElementById('services').style.display = 'block';
+  }
+
+  document.getElementById('agendar-btn').onclick = function(){
+    const service = document.querySelector('input[name="service"]:checked');
+    if(!service){ alert("Selecione um serviço"); return; }
+    selectedService = { name: service.value, price: service.dataset.price };
+    document.getElementById('payment-info').textContent = `Valor a pagar: R$${selectedService.price}`;
+    document.getElementById('payment-section').style.display = 'block';
+  };
+
+  document.getElementById('pay-btn').onclick = function(){
+    // Simula pagamento aprovado
+    alert("Pagamento confirmado!");
+    if(!reservedSlots[selectedDay]) reservedSlots[selectedDay] = [];
+    reservedSlots[selectedDay].push(selectedTime);
+    startCountdown(selectedDay, selectedTime);
+    document.getElementById('payment-section').style.display = 'none';
+    document.getElementById('services').style.display = 'none';
+  };
+
+  function startCountdown(day, time){
+    if(countdownInterval) clearInterval(countdownInterval);
+    const [hour, min] = time.split(':').map(Number);
+    const now = new Date();
+    let target = new Date();
+    target.setHours(hour, min, 0, 0);
+    if(target < now) target.setDate(target.getDate() + 7); // próximo dia se passado
+    countdownInterval = setInterval(()=>{
+      const diff = target - new Date();
+      if(diff <= 0){ clearInterval(countdownInterval); document.getElementById('countdown').textContent="Hora do corte!"; return; }
+      const h = Math.floor(diff/1000/3600);
+      const m = Math.floor(diff/1000/60)%60;
+      const s = Math.floor(diff/1000)%60;
+      document.getElementById('countdown').textContent = `Tempo até o horário: ${h}h ${m}m ${s}s`;
+    }, 1000);
+  }
+
+  // Mantém login entre sessões
+  if(localStorage.getItem('user')) {
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('booking-section').style.display = 'block';
+    loadSlots();
+  }
+
+</script>
 </body>
 </html>
+
