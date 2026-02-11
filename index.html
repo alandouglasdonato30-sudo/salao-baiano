@@ -1,112 +1,209 @@
-<script type="module">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salão do Baiano - Agendamento</title>
 
-// 🔥 IMPORTS CORRETOS PARA HTML
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs }
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<style>
+body{
+    background:#111;
+    color:#fff;
+    font-family:Arial, sans-serif;
+    text-align:center;
+    padding:20px;
+}
+.day, .hour{
+    display:inline-block;
+    padding:10px 15px;
+    margin:5px;
+    background:#222;
+    border-radius:6px;
+    cursor:pointer;
+}
+.selected{
+    background:#00c853;
+}
+#agendar{
+    margin-top:20px;
+    padding:12px 25px;
+    font-size:16px;
+    background:gray;
+    border:none;
+    border-radius:8px;
+    color:white;
+    cursor:not-allowed;
+}
+#agendar.active{
+    background:#00c853;
+    cursor:pointer;
+}
+#confirmacao, #pagar{
+    display:none;
+    margin-top:30px;
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+}
+#pagar{
+    margin-top:15px;
+    padding:10px 20px;
+    background:#ff5722;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    color:white;
+}
+</style>
+</head>
 
-// 🔑 SUA CONFIG (a que você mandou)
-const firebaseConfig = {
-  apiKey: "AIzaSyBIhdaoUVn15NHkOMSVCqIe2KyduVqo1vc",
-  authDomain: "myproject-68706.firebaseapp.com",
-  projectId: "myproject-68706",
-  storageBucket: "myproject-68706.firebasestorage.app",
-  messagingSenderId: "283715328094",
-  appId: "1:283715328094:web:2227ab06853a1a2dd9fccf",
-  measurementId: "G-V69Z81H288"
-};
+<body>
 
-// 🚀 Inicializa Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+<h1>💈 Salão do Baiano</h1>
 
-let user;
-let agendamentoSalvo = null;
+<h3>Escolha o dia</h3>
+<div id="dias"></div>
 
-// 🔐 Login automático
-onAuthStateChanged(auth, async (u)=>{
-    if(u){
-        user = u;
-        verificarAgendamento();
-        carregarHorarios();
-    }else{
-        await signInWithPopup(auth, provider);
+<h3>Escolha o horário</h3>
+<div id="horarios"></div>
+
+<button id="agendar">AGENDAR</button>
+
+<div id="confirmacao">
+    <h2>✅ Reserva Confirmada</h2>
+    <p><strong>Código:</strong> <span id="codigo"></span></p>
+    <p>Tempo até o horário:</p>
+    <h3 id="contador"></h3>
+</div>
+
+<button id="pagar">Pagar</button>
+
+<script>
+// Dias da semana
+const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const diasDiv = document.getElementById("dias");
+const horariosDiv = document.getElementById("horarios");
+const btnAgendar = document.getElementById("agendar");
+const btnPagar = document.getElementById("pagar");
+
+let diaSelecionado = null;
+let horaSelecionada = null;
+
+// Armazenar reservas
+let reservas = {}; // formato: reservas[dia] = [horas reservadas]
+
+diasSemana.forEach(dia=>{
+    const d = document.createElement("div");
+    d.className="day";
+    d.innerText=dia;
+    d.onclick=()=>{
+        document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
+        d.classList.add("selected");
+        diaSelecionado = dia;
+        atualizarHorarios();
+        liberarBotao();
     }
+    diasDiv.appendChild(d);
 });
 
-// 🔎 Verifica se já tem agendamento salvo
-async function verificarAgendamento(){
-    const ref = doc(db, "agendamentos", user.uid);
-    const snap = await getDoc(ref);
+function atualizarHorarios(){
+    horariosDiv.innerHTML = "";
+    let horaInicio = 8;
+    let horaFim = 19;
 
-    if(snap.exists()){
-        agendamentoSalvo = snap.data();
-        alert("Você já tem um agendamento salvo!");
-    }
-}
+    if(diaSelecionado === "Dom") horaFim = 11; // regra domingo
 
-// 📅 Carrega horários
-async function carregarHorarios(){
+    for(let h = horaInicio; h <= horaFim; h++){
+        const hora = ${h.toString().padStart(2,"0")}:00;
+        const div = document.createElement("div");
+        div.className="hour";
+        div.innerText=hora;
 
-    const horariosDiv = document.getElementById("horarios");
-    horariosDiv.innerHTML="";
-
-    const querySnap = await getDocs(collection(db,"agendamentos"));
-    let ocupados = [];
-
-    querySnap.forEach(doc=>{
-        ocupados.push(doc.data().hora + "-" + doc.data().dia);
-    });
-
-    const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-    let hoje = diasSemana[new Date().getDay()];
-
-    for(let h=8;h<=19;h++){
-        for(let m of ["00","30"]){
-
-            if(h===19 && m==="30") continue;
-
-            let hr=`${h.toString().padStart(2,"0")}:${m}`;
-            let chave = hr+"-"+hoje;
-
-            let el=document.createElement("div");
-            el.className="hour";
-            el.innerText=hr;
-
-            if(ocupados.includes(chave)){
-                el.style.opacity="0.3";
-            }else{
-                el.onclick=()=>agendar(hoje,hr);
+        // se hora já reservada
+        if(reservas[diaSelecionado] && reservas[diaSelecionado].includes(hora)){
+            div.style.background="#555";
+            div.style.cursor="not-allowed";
+        } else {
+            div.onclick=()=>{
+                document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
+                div.classList.add("selected");
+                horaSelecionada = hora;
+                liberarBotao();
             }
-
-            horariosDiv.appendChild(el);
         }
+
+        horariosDiv.appendChild(div);
     }
 }
 
-// 📝 Salvar agendamento
-async function agendar(dia,hora){
-
-    if(agendamentoSalvo){
-        alert("Você já possui agendamento!");
-        return;
+function liberarBotao(){
+    if(diaSelecionado && horaSelecionada){
+        btnAgendar.classList.add("active");
+        btnAgendar.disabled=false;
     }
-
-    const ref = doc(db, "agendamentos", user.uid);
-
-    await setDoc(ref,{
-        nome:user.displayName,
-        email:user.email,
-        dia:dia,
-        hora:hora
-    });
-
-    alert("Agendamento confirmado!");
-    location.reload();
 }
 
+btnAgendar.onclick=()=>{
+    if(!btnAgendar.classList.contains("active")) return;
+
+    // simular pagamento
+    btnAgendar.style.display = "none";
+    btnPagar.style.display = "inline-block";
+}
+
+// Botão simula pagamento
+btnPagar.onclick = () => {
+    // Registrar reserva
+    if(!reservas[diaSelecionado]) reservas[diaSelecionado] = [];
+    reservas[diaSelecionado].push(horaSelecionada);
+
+    // Gerar código de reserva
+    const codigo = Math.floor(100000 + Math.random()*900000);
+    document.getElementById("codigo").innerText = codigo;
+
+    // Mostrar confirmação
+    document.getElementById("confirmacao").style.display = "block";
+    btnPagar.style.display = "none";
+
+    iniciarContagem(diaSelecionado, horaSelecionada);
+}
+
+// Contagem regressiva até horário agendado
+function iniciarContagem(dia, hora){
+    const agora = new Date();
+    let diaIndex = diasSemana.indexOf(dia);
+    const hojeIndex = agora.getDay(); // 0 = Dom
+    let diasParaAgendar = (diaIndex - hojeIndex + 7) % 7;
+    if(diasParaAgendar === 0 && hora <= ${agora.getHours().toString().padStart(2,"0")}:00){
+        diasParaAgendar = 7; // se o horário já passou hoje
+    }
+
+    const [h, m] = hora.split(":");
+    const dataAgendada = new Date(
+        agora.getFullYear(),
+        agora.getMonth(),
+        agora.getDate() + diasParaAgendar,
+        parseInt(h),
+        parseInt(m),
+        0
+    );
+
+    let segundos = Math.floor((dataAgendada - agora)/1000);
+
+    const intervalo = setInterval(()=>{
+        if(segundos <= 0){
+            clearInterval(intervalo);
+            document.getElementById("contador").innerText = "00:00";
+            return;
+        }
+        segundos--;
+        let min = Math.floor(segundos/60);
+        let sec = segundos % 60;
+        document.getElementById("contador").innerText =
+            ${min.toString().padStart(2,"0")}m ${sec.toString().padStart(2,"0")}s;
+    },1000);
+}
 </script>
+
+</body>
+</html>
