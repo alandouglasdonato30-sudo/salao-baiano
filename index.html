@@ -7,52 +7,29 @@
 
 <style>
 body{
-    background:#111;
-    color:#fff;
-    font-family:Arial, sans-serif;
-    text-align:center;
-    padding:20px;
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: white;
+    text-align: center;
+    padding: 20px;
 }
-.day, .hour{
-    display:inline-block;
-    padding:10px 15px;
-    margin:5px;
+.slot{
     background:#222;
-    border-radius:6px;
-    cursor:pointer;
-}
-.selected{
-    background:#00c853;
-}
-#agendar{
-    margin-top:20px;
-    padding:12px 25px;
-    font-size:16px;
-    background:gray;
-    border:none;
+    padding:15px;
+    margin:10px auto;
     border-radius:8px;
-    color:white;
-    cursor:not-allowed;
+    width:200px;
 }
-#agendar.active{
+button{
+    padding:8px 15px;
     background:#00c853;
-    cursor:pointer;
-}
-#confirmacao, #pagar{
-    display:none;
-    margin-top:30px;
-    background:#222;
-    padding:20px;
-    border-radius:10px;
-}
-#pagar{
-    margin-top:15px;
-    padding:10px 20px;
-    background:#ff5722;
     border:none;
-    border-radius:6px;
-    cursor:pointer;
+    border-radius:5px;
     color:white;
+    cursor:pointer;
+}
+button:disabled{
+    background:gray;
 }
 </style>
 </head>
@@ -60,150 +37,26 @@ body{
 <body>
 
 <h1>💈 Salão do Baiano</h1>
+<p>Escolha um horário disponível</p>
 
-<h3>Escolha o dia</h3>
-<div id="dias"></div>
-
-<h3>Escolha o horário</h3>
-<div id="horarios"></div>
-
-<button id="agendar">AGENDAR</button>
-
-<div id="confirmacao">
-    <h2>✅ Reserva Confirmada</h2>
-    <p><strong>Código:</strong> <span id="codigo"></span></p>
-    <p>Tempo até o horário:</p>
-    <h3 id="contador"></h3>
+<div class="slot">
+    <p>10:00</p>
+    <button>Agendar</button>
 </div>
 
-<button id="pagar">Pagar</button>
+<div class="slot">
+    <p>11:00</p>
+    <button>Agendar</button>
+</div>
 
-<script>
-// Dias da semana
-const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-const diasDiv = document.getElementById("dias");
-const horariosDiv = document.getElementById("horarios");
-const btnAgendar = document.getElementById("agendar");
-const btnPagar = document.getElementById("pagar");
+<div class="slot">
+    <p>14:00</p>
+    <button>Agendar</button>
+</div>
 
-let diaSelecionado = null;
-let horaSelecionada = null;
-
-// Armazenar reservas
-let reservas = {}; // formato: reservas[dia] = [horas reservadas]
-
-diasSemana.forEach(dia=>{
-    const d = document.createElement("div");
-    d.className="day";
-    d.innerText=dia;
-    d.onclick=()=>{
-        document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
-        d.classList.add("selected");
-        diaSelecionado = dia;
-        atualizarHorarios();
-        liberarBotao();
-    }
-    diasDiv.appendChild(d);
-});
-
-function atualizarHorarios(){
-    horariosDiv.innerHTML = "";
-    let horaInicio = 8;
-    let horaFim = 19;
-
-    if(diaSelecionado === "Dom") horaFim = 11; // regra domingo
-
-    for(let h = horaInicio; h <= horaFim; h++){
-        const hora = ${h.toString().padStart(2,"0")}:00;
-        const div = document.createElement("div");
-        div.className="hour";
-        div.innerText=hora;
-
-        // se hora já reservada
-        if(reservas[diaSelecionado] && reservas[diaSelecionado].includes(hora)){
-            div.style.background="#555";
-            div.style.cursor="not-allowed";
-        } else {
-            div.onclick=()=>{
-                document.querySelectorAll(".hour").forEach(x=>x.classList.remove("selected"));
-                div.classList.add("selected");
-                horaSelecionada = hora;
-                liberarBotao();
-            }
-        }
-
-        horariosDiv.appendChild(div);
-    }
-}
-
-function liberarBotao(){
-    if(diaSelecionado && horaSelecionada){
-        btnAgendar.classList.add("active");
-        btnAgendar.disabled=false;
-    }
-}
-
-btnAgendar.onclick=()=>{
-    if(!btnAgendar.classList.contains("active")) return;
-
-    // simular pagamento
-    btnAgendar.style.display = "none";
-    btnPagar.style.display = "inline-block";
-}
-
-// Botão simula pagamento
-btnPagar.onclick = () => {
-    // Registrar reserva
-    if(!reservas[diaSelecionado]) reservas[diaSelecionado] = [];
-    reservas[diaSelecionado].push(horaSelecionada);
-
-    // Gerar código de reserva
-    const codigo = Math.floor(100000 + Math.random()*900000);
-    document.getElementById("codigo").innerText = codigo;
-
-    // Mostrar confirmação
-    document.getElementById("confirmacao").style.display = "block";
-    btnPagar.style.display = "none";
-
-    iniciarContagem(diaSelecionado, horaSelecionada);
-}
-
-// Contagem regressiva até horário agendado
-function iniciarContagem(dia, hora){
-    const agora = new Date();
-    let diaIndex = diasSemana.indexOf(dia);
-    const hojeIndex = agora.getDay(); // 0 = Dom
-    let diasParaAgendar = (diaIndex - hojeIndex + 7) % 7;
-    if(diasParaAgendar === 0 && hora <= ${agora.getHours().toString().padStart(2,"0")}:00){
-        diasParaAgendar = 7; // se o horário já passou hoje
-    }
-
-    const [h, m] = hora.split(":");
-    const dataAgendada = new Date(
-        agora.getFullYear(),
-        agora.getMonth(),
-        agora.getDate() + diasParaAgendar,
-        parseInt(h),
-        parseInt(m),
-        0
-    );
-
-    let segundos = Math.floor((dataAgendada - agora)/1000);
-
-    const intervalo = setInterval(()=>{
-        if(segundos <= 0){
-            clearInterval(intervalo);
-            document.getElementById("contador").innerText = "00:00";
-            return;
-        }
-        segundos--;
-        let min = Math.floor(segundos/60);
-        let sec = segundos % 60;
-        document.getElementById("contador").innerText =
-            ${min.toString().padStart(2,"0")}m ${sec.toString().padStart(2,"0")}s;
-    },1000);
-}
-</script>
+<p style="margin-top:40px; font-size:14px; color:#aaa;">
+    © 2026 Salão do Baiano
+</p>
 
 </body>
 </html>
